@@ -1,10 +1,10 @@
 const getAspectRatio = (width, height) => {
   return width / height;
 };
-const getWidth = (height, aspectRatio) => {
+const getWidthFromRatio = (height, aspectRatio) => {
   return height * aspectRatio;
 };
-const getHeight = (width, aspectRatio) => {
+const getHeightFromRatio = (width, aspectRatio) => {
   return width / aspectRatio;
 };
 const getImage = (e, callback) => {
@@ -22,42 +22,30 @@ const getImage = (e, callback) => {
     };
   }
 };
-const changeImageSize = (
-  image,
-  originalWidth,
-  originalHeight,
-  width,
-  height,
-  maintainAspectRatio
-) => {
+const changeImageWidth = (image, width, aspectRatio, maintainAspectRatio) => {
   if (maintainAspectRatio) {
-    const aspectRatio = getAspectRatio(originalWidth, originalHeight);
-    if (height) {
-      const newWidth = getWidth(height, aspectRatio);
-      image.width = newWidth;
-      image.height = height;
-    } else if (width) {
-      const newHeight = getHeight(width, aspectRatio);
-      image.width = width;
-      image.height = newHeight;
-    } else {
-      throw new Error("height or width not specified");
-    }
+    const newHeight = getHeightFromRatio(width, aspectRatio);
+    image.width = width;
+    image.height = newHeight;
   } else {
-    if (width) {
-      image.width = width;
-    } else if (height) {
-      image.height = height;
-    } else {
-      throw new Error("height or width not specified");
-    }
+    image.width = width;
   }
 };
-const isChecked = (ref) => {
-  return ref.checked === true;
+const changeImageHeight = (image, height, aspectRatio, maintainAspectRatio) => {
+  if (maintainAspectRatio) {
+    const newWidth = getWidthFromRatio(height, aspectRatio);
+    image.width = newWidth;
+    image.height = height;
+  } else {
+    image.height = height;
+  }
 };
-const getPositions = (
-  pos,
+
+const isChecked = (checkbox) => {
+  return checkbox.checked === true;
+};
+const getCoordinates = (
+  position,
   imageWidth,
   imageHeight,
   canvasWidth,
@@ -65,7 +53,7 @@ const getPositions = (
 ) => {
   const xCenter = canvasWidth / 2 - imageWidth / 2;
   const yCenter = canvasHeight / 2 - imageHeight / 2;
-  switch (pos) {
+  switch (position) {
     case "top-left":
       return [0, 0];
     case "top-center":
@@ -95,7 +83,7 @@ const watermark = (canvas, baseImage, watermarkImage, position, alpha) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(baseImage, 0, 0, baseImage.width, baseImage.height);
   ctx.globalAlpha = alpha;
-  const [x, y] = getPositions(
+  const [x, y] = getCoordinates(
     position,
     watermarkImage.width,
     watermarkImage.height,
@@ -110,76 +98,19 @@ const watermark = (canvas, baseImage, watermarkImage, position, alpha) => {
     watermarkImage.height
   );
 };
+const saveImage = (canvas) => {
+  const image = canvas.toDataURL("image/png");
+  const link = document.createElement("a");
+  link.download = "download.png";
+  link.href = image;
+  link.click();
+};
 const canvas = document.querySelector("canvas");
-let baseImage;
-let watermarkImage;
-const baseImageDimensions = {
-  width: 0,
-  height: 0,
-};
-const watermarkImageDimensions = {
-  width: 0,
-  height: 0,
-};
-document.getElementById("inputForm").addEventListener("input", (e) => {
-  if (!baseImage || !watermarkImage) {
-    watermarkButton.disabled = true;
-  } else {
-    watermarkButton.disabled = false;
-  }
-});
 const baseImageInput = document.getElementById("baseImageInput");
-baseImageInput.addEventListener("input", (e) => {
-  getImage(e, (img) => {
-    baseImage = img;
-    console.log([img.width, img.height]);
-    baseImageDimensions.width = img.width;
-    baseImageDimensions.height = img.height;
-    updateImageSizeValueDOM(img, baseImageWidthInput, baseImageHeightInput);
-  });
-});
 const watermarkImageInput = document.getElementById("watermarkImageInput");
-watermarkImageInput.addEventListener("input", (e) => {
-  getImage(e, (img) => {
-    watermarkImage = img;
-    console.log([img.width, img.height]);
-    watermarkImageDimensions.height = img.height;
-    watermarkImageDimensions.width = img.width;
-    updateImageSizeValueDOM(
-      img,
-      watermarkImageWidthInput,
-      watermarkImageHeightInput
-    );
-  });
-});
 const baseImageWidthInput = document.getElementById("baseImageWidth");
 const baseImageHeightInput = document.getElementById("baseImageHeight");
 const baseImageAspectChecked = document.getElementById("baseImageRatioChecked");
-baseImageWidthInput.addEventListener("input", (e) => {
-  const value = parseInt(e.target.value);
-  changeImageSize(
-    baseImage,
-    baseImageDimensions.width,
-    baseImageDimensions.height,
-    value,
-    null,
-    isChecked(baseImageAspectChecked)
-  );
-  updateImageSizeValueDOM(baseImage, baseImageWidthInput, baseImageHeightInput);
-});
-baseImageHeightInput.addEventListener("input", (e) => {
-  const value = parseInt(e.target.value);
-  changeImageSize(
-    baseImage,
-    baseImageDimensions.width,
-    baseImageDimensions.height,
-    null,
-    value,
-    isChecked(baseImageAspectChecked)
-  );
-  updateImageSizeValueDOM(baseImage, baseImageWidthInput, baseImageHeightInput);
-});
-
 const watermarkImageWidthInput = document.getElementById("watermarkImageWidth");
 const watermarkImageHeightInput = document.getElementById(
   "watermarkImageHeight"
@@ -187,14 +118,68 @@ const watermarkImageHeightInput = document.getElementById(
 const watermarkImageAspectChecked = document.getElementById(
   "watermarkImageRatioChecked"
 );
+const positionInput = document.getElementById("watermarkImagePositionInput");
+const alphaInput = document.getElementById("watermarkImageAlpha");
+const watermarkButton = document.getElementById("watermarkButton");
+const inputForm = document.getElementById("inputForm");
+const saveButton = document.getElementById("saveButton");
+let baseImage;
+let watermarkImage;
+let baseImageAspectRatio;
+let watermarkImageAspectRatio;
+
+inputForm.addEventListener("input", () => {
+  if (!baseImage || !watermarkImage) {
+    watermarkButton.disabled = true;
+  } else {
+    watermarkButton.disabled = false;
+  }
+});
+baseImageInput.addEventListener("input", (e) => {
+  getImage(e, (img) => {
+    baseImage = img;
+    baseImageAspectRatio = getAspectRatio(img.width, img.height);
+    updateImageSizeValueDOM(img, baseImageWidthInput, baseImageHeightInput);
+  });
+});
+watermarkImageInput.addEventListener("input", (e) => {
+  getImage(e, (img) => {
+    watermarkImage = img;
+    watermarkImageAspectRatio = getAspectRatio(img.width, img.height);
+    updateImageSizeValueDOM(
+      img,
+      watermarkImageWidthInput,
+      watermarkImageHeightInput
+    );
+  });
+});
+baseImageWidthInput.addEventListener("input", (e) => {
+  const value = parseInt(e.target.value);
+  changeImageWidth(
+    baseImage,
+    value,
+    baseImageAspectRatio,
+    isChecked(baseImageAspectChecked)
+  );
+  updateImageSizeValueDOM(baseImage, baseImageWidthInput, baseImageHeightInput);
+});
+baseImageHeightInput.addEventListener("input", (e) => {
+  const value = parseInt(e.target.value);
+  changeImageHeight(
+    baseImage,
+    value,
+    baseImageAspectRatio,
+    isChecked(baseImageAspectChecked)
+  );
+  updateImageSizeValueDOM(baseImage, baseImageWidthInput, baseImageHeightInput);
+});
+
 watermarkImageWidthInput.addEventListener("input", (e) => {
   const value = parseInt(e.target.value);
-  changeImageSize(
+  changeImageWidth(
     watermarkImage,
-    watermarkImageDimensions.width,
-    watermarkImageDimensions.height,
     value,
-    null,
+    watermarkImageAspectRatio,
     isChecked(watermarkImageAspectChecked)
   );
   updateImageSizeValueDOM(
@@ -205,12 +190,10 @@ watermarkImageWidthInput.addEventListener("input", (e) => {
 });
 watermarkImageHeightInput.addEventListener("input", (e) => {
   const value = parseInt(e.target.value);
-  changeImageSize(
+  changeImageHeight(
     watermarkImage,
-    watermarkImageDimensions.width,
-    watermarkImageDimensions.height,
-    null,
     value,
+    watermarkImageAspectRatio,
     isChecked(watermarkImageAspectChecked)
   );
   updateImageSizeValueDOM(
@@ -219,10 +202,11 @@ watermarkImageHeightInput.addEventListener("input", (e) => {
     watermarkImageHeightInput
   );
 });
-const positionInput = document.getElementById("watermarkImagePositionInput");
-const alphaInput = document.getElementById("watermarkImageAlpha");
-const watermarkButton = document.getElementById("watermarkButton");
 watermarkButton.addEventListener("click", () => {
   const alpha = parseInt(alphaInput.value) / 100;
   watermark(canvas, baseImage, watermarkImage, positionInput.value, alpha);
+  saveButton.disabled = false;
+});
+saveButton.addEventListener("click", () => {
+  saveImage(canvas);
 });
