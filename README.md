@@ -1,4 +1,10 @@
-# HTML Canvas Image Watermarking Tool
+<p align="center">
+  <a href="https://github.com/eyuelberga/HTMLCanvasImageWatermarker">
+    <img src="https://github.com/eyuelberga/HTMLCanvasImageWatermarker/blob/main/banner.png?raw=true" alt="HTML Canvas Image Watermarker banner" width="300" />
+  </a>
+</p>
+
+<br>
 
 <img src="https://github.com/eyuelberga/HTMLCanvasImageWatermarker/blob/main/preview.png?raw=true" alt="Preview"/>
 
